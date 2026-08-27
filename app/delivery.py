@@ -20,7 +20,7 @@ KEYWORD_RULES = [
     (re.compile(r"relay access denied|relaying denied|relay denied", re.I), "Пересылка запрещена", "Почтовый сервер не разрешает пересылку сообщения для указанного направления."),
     (re.compile(r"message size|too large|size exceeds|exceeded.*size", re.I), "Сообщение слишком большое", "Размер письма превышает ограничение почтовой системы."),
     (re.compile(r"mailbox full|quota exceeded|over quota", re.I), "Почтовый ящик переполнен", "На стороне получателя недостаточно свободного места."),
-    (re.compile(r"user unknown|unknown user|recipient.*not found|no such user|mailbox.*not found", re.I), "Получатель не найден", "Проверьте адрес электронной почты получателя."),
+    (re.compile(r"user unknown|unknown user|user not found|recipient.*not found|no such user|invalid mailbox|mailbox.*(?:not found|unavailable)", re.I), "Получатель не найден", "Проверьте адрес электронной почты получателя."),
     (re.compile(r"greylist|try again later", re.I), "Доставка временно отложена", "Сервер получателя просит повторить попытку позже. Почтовая система обычно сделает это автоматически."),
 ]
 

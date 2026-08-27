@@ -27,6 +27,7 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.pyright/
 .pyre/
 .hypothesis/
 .coverage
@@ -41,6 +42,8 @@ coverage.xml
 venv/
 env/
 ENV/
+.tox/
+.nox/
 
 # Packaging and build artifacts
 build/
@@ -87,3 +90,8 @@ test-results/
 # Docker local overrides
 docker-compose.override.yml
 compose.override.yml
+.docker/
+docker-data/
+docker-tmp/
+tmp/docker/
+*.pid

@@ -28,6 +28,16 @@ def main():
     dsn = parse_delivery("550 5.1.1 User unknown")
     assert dsn["items"][0]["title"] == "Получатель не найден"
 
+    mailru = parse_delivery(
+        "<yana-dnr87@mail.ru>: host mxs.mail.ru[94.100.180.31] said: "
+        "550 Message was not accepted -- invalid mailbox. "
+        "Local mailbox yana-dnr87@mail.ru is unavailable: user not found "
+        "(in reply to end of DATA command)"
+    )
+    assert mailru["items"][0]["smtp_code"] == "550"
+    assert mailru["items"][0]["status"] == "error"
+    assert mailru["items"][0]["title"] == "Получатель не найден"
+
     delayed = parse_delivery("Action: delayed\nStatus: 4.4.1\nDiagnostic-Code: smtp; 451 4.4.1 try again later")
     assert delayed["items"][0]["title"] == "Доставка задерживается"
 
