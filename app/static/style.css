@@ -11,7 +11,8 @@ button { cursor: pointer; }
   height: 58px; display: flex; align-items: center; justify-content: space-between;
   padding: 0 28px; background: #fff; border-bottom: 1px solid #dfe3e8;
 }
-.brand { color: #20242b; font-weight: 700; text-decoration: none; }
+.brand { display: inline-flex; align-items: center; gap: 10px; color: #20242b; font-weight: 700; text-decoration: none; }
+.brand-icon { display: block; width: 34px; height: 34px; flex: 0 0 34px; }
 .admin-link { color: #5b6470; text-decoration: none; font-size: 14px; }
 .container { width: min(1500px, calc(100% - 32px)); margin: 24px auto 48px; }
 .panel { background: #fff; border: 1px solid #dfe3e8; border-radius: 10px; padding: 20px; margin-bottom: 18px; }
