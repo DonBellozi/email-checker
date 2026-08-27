@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <div class="tabs">
+    <button class="tab active" data-tab="addresses">Проверка адресов</button>
+    <button class="tab" data-tab="delivery">Статус доставки</button>
+  </div>
+
+  <div id="addresses" class="tab-pane active">
+    <p class="hint">Вставьте один или несколько адресов, список из Outlook или фрагмент текста. Максимум {{ max_addresses }} адресов за одну проверку.</p>
+    <textarea id="emailInput" rows="10" placeholder='Иванов Иван <ivanov@example.ru>; petrov@mail.ru'></textarea>
+    <div class="actions"><button id="checkBtn" class="primary">Проверить</button></div>
+    <div id="emailSummary" class="summary hidden"></div>
+    <div class="table-wrap hidden" id="emailTableWrap">
+      <table class="result-table">
+        <thead><tr><th class="line-col">#</th><th>Исходный текст</th><th class="status-col">Статус</th><th>Очищенный адрес</th><th>Результат</th></tr></thead>
+        <tbody id="emailResults"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="delivery" class="tab-pane">
+    <p class="hint">Вставьте SMTP-код или целиком служебное сообщение Mailer-Daemon / почтовой системы.</p>
+    <textarea id="deliveryInput" rows="12" placeholder="550 5.1.1 User unknown"></textarea>
+    <div class="actions"><button id="deliveryBtn" class="primary">Расшифровать</button></div>
+    <div id="deliveryResults"></div>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}<script src="/static/app.js"></script>{% endblock %}

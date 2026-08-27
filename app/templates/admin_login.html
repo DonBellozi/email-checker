@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Вход администратора{% endblock %}
+{% block content %}
+<section class="panel narrow">
+  <h1>Вход администратора</h1>
+  {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+  <form method="post" action="/admin/login" class="stack-form">
+    <label>Логин<input name="username" autocomplete="username" required></label>
+    <label>Пароль<input name="password" type="password" autocomplete="current-password" required></label>
+    <button class="primary" type="submit">Войти</button>
+  </form>
+</section>
+{% endblock %}
