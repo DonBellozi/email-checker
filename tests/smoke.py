@@ -38,6 +38,43 @@ def main():
     assert mailru["items"][0]["status"] == "error"
     assert mailru["items"][0]["title"] == "Получатель не найден"
 
+    delivery_cases = [
+        (
+            "This message was created automatically by mail delivery software.\n"
+            "A message that you sent could not be delivered. This is a permanent error. "
+            "The following address(es) failed:\n\nneftvodokanal@ufamts.ru\n"
+            "mailbox is full: retry timeout exceeded",
+            "neftvodokanal@ufamts.ru", "Почтовый ящик переполнен", "error",
+        ),
+        (
+            "armavir@mo.krasnodar.ru: message size 27612894 exceeds size limit "
+            "26214400 of server mail-fr.krasnodar.ru[46.226.227.7]",
+            "armavir@mo.krasnodar.ru", "Сообщение слишком большое", "warning",
+        ),
+        (
+            "Undelivered Mail Returned to Sender\n\n"
+            "ryazan@ryazangov.ru: conversation with ryazangov.ru[185.71.67.179] "
+            "timed out while receiving the initial server greeting",
+            "ryazan@ryazangov.ru", "Сервер получателя не ответил", "error",
+        ),
+        (
+            '<"mailto:stroyholding0414"@mail.ru>: host mxs.mail.ru[217.69.139.150] said: '
+            "550 5.1.3 Bad destination mailbox address syntax: invalid mailbox. "
+            'Local mailbox <"mailto is unavailable: Ill-formatted e-mail address',
+            '"mailto:stroyholding0414"@mail.ru', "Некорректный адрес получателя", "error",
+        ),
+        (
+            "into@xn--geenfin-rgg.xn--izoup-owe.com: host 10.0.10.176[10.0.10.176] "
+            "said: 450 4.1.2 Recipient address rejected: Domain not found",
+            "into@xn--geenfin-rgg.xn--izoup-owe.com", "Домен получателя не найден", "warning",
+        ),
+    ]
+    for raw, recipient, title, status in delivery_cases:
+        parsed = parse_delivery(raw)["items"][0]
+        assert parsed["recipient"] == recipient
+        assert parsed["title"] == title
+        assert parsed["status"] == status
+
     delayed = parse_delivery("Action: delayed\nStatus: 4.4.1\nDiagnostic-Code: smtp; 451 4.4.1 try again later")
     assert delayed["items"][0]["title"] == "Доставка задерживается"
 

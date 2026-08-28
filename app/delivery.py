@@ -19,8 +19,11 @@ KEYWORD_RULES = [
     (re.compile(r"blacklist|blocklist|blocked using|listed in", re.I), "Отправитель заблокирован", "Сервер или IP-адрес отправителя находится в списке блокировки или отклонен политикой получателя."),
     (re.compile(r"relay access denied|relaying denied|relay denied", re.I), "Пересылка запрещена", "Почтовый сервер не разрешает пересылку сообщения для указанного направления."),
     (re.compile(r"message size|too large|size exceeds|exceeded.*size", re.I), "Сообщение слишком большое", "Размер письма превышает ограничение почтовой системы."),
-    (re.compile(r"mailbox full|quota exceeded|over quota", re.I), "Почтовый ящик переполнен", "На стороне получателя недостаточно свободного места."),
+    (re.compile(r"mailbox (?:is )?full|quota exceeded|over quota", re.I), "Почтовый ящик переполнен", "На стороне получателя недостаточно свободного места."),
+    (re.compile(r"bad destination mailbox address syntax|ill-?formatted e-?mail address|invalid (?:recipient|mailbox).*syntax", re.I), "Некорректный адрес получателя", "Адрес получателя записан с синтаксической ошибкой. Удалите лишние кавычки, префикс mailto: и другие посторонние символы."),
+    (re.compile(r"domain not found|host or domain name not found|no such domain|domain.*does not exist", re.I), "Домен получателя не найден", "Почтовый домен получателя не существует или не разрешается через DNS. Проверьте часть адреса после @."),
     (re.compile(r"user unknown|unknown user|user not found|recipient.*not found|no such user|invalid mailbox|mailbox.*(?:not found|unavailable)", re.I), "Получатель не найден", "Проверьте адрес электронной почты получателя."),
+    (re.compile(r"conversation with.*timed out|timed out.*(?:server greeting|connection)|connection timed out", re.I), "Сервер получателя не ответил", "Не удалось установить SMTP-соединение с сервером получателя. Это может быть временной сетевой проблемой."),
     (re.compile(r"greylist|try again later", re.I), "Доставка временно отложена", "Сервер получателя просит повторить попытку позже. Почтовая система обычно сделает это автоматически."),
 ]
 
@@ -45,6 +48,28 @@ def _parse_recipient_blocks(text: str) -> list[dict]:
             "diagnostic": _first(r"^Diagnostic-Code:\s*(.+)$", block),
         })
     return out
+
+
+def _plain_recipient(text: str) -> str | None:
+    """Extract a recipient from common human-readable Postfix/Exim bounce text."""
+    recipient = _first(
+        r"following address\(es\) failed:\s*\n\s*([^\r\n]+@[^\r\n]+)",
+        text,
+    )
+    if not recipient:
+        recipient = _first(
+            r'^\s*(<?[^\r\n]+@[^\r\n]+>?)\s*:\s*(?:host\s|message size\s|conversation with\s)',
+            text,
+        )
+    if not recipient:
+        recipient = _first(
+            r'^\s*(<?(?:"[^"]+"|[^\s<>:]+)@[^\s<>:]+>?)\s*$',
+            text,
+        )
+    if not recipient:
+        return None
+    recipient = recipient.strip().strip("<>").strip()
+    return recipient if "@" in recipient else None
 
 
 def _explain(action: str | None, enhanced: str | None, smtp_code: str | None, diagnostic: str, full_text: str) -> dict:
@@ -88,7 +113,7 @@ def _explain(action: str | None, enhanced: str | None, smtp_code: str | None, di
         if action == "delayed" and enhanced and not enhanced.startswith("4"):
             explanation = ACTION_TITLES[action][3]
 
-    if not enhanced and smtp_code:
+    if action not in ACTION_TITLES and not enhanced and smtp_code:
         if smtp_code.startswith("2"):
             status, symbol = "ok", "✓"
             if title == "Не удалось определить статус":
@@ -123,7 +148,7 @@ def parse_delivery(text: str) -> dict:
             smtp = None
             enhanced = b["status"]
             diag = b["diagnostic"] or ""
-            m = re.search(r"\b([245]\d{2})\b", diag)
+            m = re.search(r"(?<![\d.])([245]\d{2})(?![\d.])", diag)
             if m:
                 smtp = m.group(1)
             if not enhanced:
@@ -137,20 +162,20 @@ def parse_delivery(text: str) -> dict:
         if not action:
             if re.search(r"Delivery Status Notification\s*\(Success\)|successfully delivered", text, re.I):
                 action = "delivered"
-            elif re.search(r"Undelivered Mail Returned to Sender|delivery (?:has )?failed|failure notice", text, re.I):
+            elif re.search(r"Undelivered Mail Returned to Sender|delivery (?:has )?failed|failure notice|could not be delivered|cannot be delivered|permanent error", text, re.I):
                 action = "failed"
             elif re.search(r"Delayed Mail|still being retried|THIS IS A WARNING ONLY|delivery temporarily suspended", text, re.I):
                 action = "delayed"
         enhanced = _first(r"^Status:\s*([245]\.\d{1,3}\.\d{1,3})", text)
         smtp = None
-        m = re.search(r"\b([245]\d{2})(?:[ -]+([245]\.\d{1,3}\.\d{1,3}))?\b", text)
+        m = re.search(r"(?<![\d.])([245]\d{2})(?:[ -]+([245]\.\d{1,3}\.\d{1,3}))?(?![\d.])", text)
         if m:
             smtp = m.group(1)
             enhanced = enhanced or m.group(2)
         if not enhanced:
             m = re.search(r"\b([245]\.\d{1,3}\.\d{1,3})\b", text)
             enhanced = m.group(1) if m else None
-        recipient = _first(r"(?:Final-Recipient:\s*[^;]+;|Original-Recipient:\s*[^;]+;)\s*(\S+)", text)
+        recipient = _first(r"(?:Final-Recipient:\s*[^;]+;|Original-Recipient:\s*[^;]+;)\s*(\S+)", text) or _plain_recipient(text)
         diagnostic = _first(r"^Diagnostic-Code:\s*(.+)$", text) or text[:500]
         info = _explain(action, enhanced, smtp, diagnostic, text)
         items.append({
