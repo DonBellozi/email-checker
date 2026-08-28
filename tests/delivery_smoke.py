@@ -16,6 +16,7 @@ def check(raw, recipient, title, status):
     assert item["recipient"] == recipient, item
     assert item["title"] == title, item
     assert item["status"] == status, item
+    return item
 
 
 def main():
@@ -27,18 +28,26 @@ def main():
         "neftvodokanal@ufamts.ru\nmailbox is full: retry timeout exceeded",
         "neftvodokanal@ufamts.ru", "Почтовый ящик переполнен", "error",
     )
-    check(
+    armavir = check(
         "Undelivered Mail Returned to Sender\n"
         "armavir@mo.krasnodar.ru: message size 27612894 exceeds size limit "
         "26214400 of server mail-fr.krasnodar.ru[46.226.227.7]",
         "armavir@mo.krasnodar.ru", "Сообщение слишком большое", "error",
     )
-    check(
+    assert armavir["message_size_bytes"] == 27612894
+    assert armavir["size_limit_bytes"] == 26214400
+    assert armavir["size_excess_bytes"] == 1398494
+    assert armavir["size_limit"].startswith("25 МБ")
+
+    proshkola = check(
         "Undelivered Mail Returned to Sender\n"
         "info@proshkola.ru: message size 110309852 exceeds size limit 73400320 "
         "of server emx.mail.ru[217.69.139.180]",
         "info@proshkola.ru", "Сообщение слишком большое", "error",
     )
+    assert proshkola["message_size_bytes"] == 110309852
+    assert proshkola["size_limit_bytes"] == 73400320
+    assert proshkola["size_limit"].startswith("70 МБ")
     check(
         'This is a permanent error. The following address(es) failed:\n\n":vodokanal"@ryazan.gov.ru\n'
         '550 Message was not accepted -- invalid mailbox. Local mailbox '

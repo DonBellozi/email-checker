@@ -72,6 +72,38 @@ def _plain_recipient(text: str) -> str | None:
     return recipient if "@" in recipient else None
 
 
+def _format_bytes(value: int) -> str:
+    if value < 1024:
+        return f"{value} Б"
+    units = ((1024 ** 3, "ГБ"), (1024 ** 2, "МБ"), (1024, "КБ"))
+    for divisor, unit in units:
+        if value >= divisor:
+            amount = value / divisor
+            formatted = f"{amount:.2f}".rstrip("0").rstrip(".").replace(".", ",")
+            bytes_text = f"{value:,}".replace(",", " ")
+            return f"{formatted} {unit} ({bytes_text} байт)"
+    return f"{value} Б"
+
+
+def _size_details(text: str) -> dict:
+    match = re.search(
+        r"message size\s+(\d+)\s+exceeds\s+(?:the\s+)?size limit\s+(\d+)",
+        text,
+        re.I,
+    )
+    if not match:
+        return {}
+    actual, limit = (int(match.group(1)), int(match.group(2)))
+    return {
+        "message_size_bytes": actual,
+        "message_size": _format_bytes(actual),
+        "size_limit_bytes": limit,
+        "size_limit": _format_bytes(limit),
+        "size_excess_bytes": max(actual - limit, 0),
+        "size_excess": _format_bytes(max(actual - limit, 0)),
+    }
+
+
 def _explain(action: str | None, enhanced: str | None, smtp_code: str | None, diagnostic: str, full_text: str) -> dict:
     status = "unknown"
     symbol = "?"
@@ -156,7 +188,8 @@ def parse_delivery(text: str) -> dict:
                 if m:
                     enhanced = m.group(1)
             info = _explain(b["action"], enhanced, smtp, diag, text)
-            items.append({**b, "smtp_code": smtp, "enhanced_code": enhanced, **info})
+            size_info = _size_details(diag or text)
+            items.append({**b, "smtp_code": smtp, "enhanced_code": enhanced, **size_info, **info})
     else:
         action = (_first(r"^Action:\s*([^\s]+)", text) or "").lower() or None
         if not action:
@@ -178,6 +211,7 @@ def parse_delivery(text: str) -> dict:
         recipient = _first(r"(?:Final-Recipient:\s*[^;]+;|Original-Recipient:\s*[^;]+;)\s*(\S+)", text) or _plain_recipient(text)
         diagnostic = _first(r"^Diagnostic-Code:\s*(.+)$", text) or text[:500]
         info = _explain(action, enhanced, smtp, diagnostic, text)
+        size_info = _size_details(text)
         items.append({
             "recipient": recipient,
             "action": action,
@@ -185,6 +219,7 @@ def parse_delivery(text: str) -> dict:
             "diagnostic": diagnostic,
             "smtp_code": smtp,
             "enhanced_code": enhanced,
+            **size_info,
             **info,
         })
 

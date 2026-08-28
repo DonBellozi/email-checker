@@ -98,6 +98,9 @@ $('#deliveryBtn').addEventListener('click', async () => {
           ${item.action ? `<div class="muted">Action</div><div>${escapeHtml(item.action)}</div>` : ''}
           ${item.smtp_code ? `<div class="muted">SMTP-код</div><div>${escapeHtml(item.smtp_code)}</div>` : ''}
           ${item.enhanced_code ? `<div class="muted">Статус</div><div>${escapeHtml(item.enhanced_code)}</div>` : ''}
+          ${item.message_size ? `<div class="muted">Размер письма</div><div>${escapeHtml(item.message_size)}</div>` : ''}
+          ${item.size_limit ? `<div class="muted">Допустимый размер</div><div>${escapeHtml(item.size_limit)}</div>` : ''}
+          ${item.size_excess ? `<div class="muted">Превышение</div><div>${escapeHtml(item.size_excess)}</div>` : ''}
         </div>`;
       box.appendChild(div);
     }
