@@ -94,7 +94,8 @@ $('#deliveryBtn').addEventListener('click', async () => {
         <h3 class="status-${escapeHtml(item.status)}">${escapeHtml(item.symbol)} ${escapeHtml(item.title)}</h3>
         <div>${escapeHtml(item.explanation)}</div>
         <div class="delivery-meta">
-          ${item.recipient ? `<div class="muted">Получатель</div><div>${escapeHtml(item.recipient)}</div>` : ''}
+          ${item.recipient ? `<div class="muted">Получатель</div><div class="email-cell">${renderHighlighted(item.recipient, item.recipient_highlights)}</div>` : ''}
+          ${item.recipient_check ? `<div class="muted">Проверка адреса</div><div><span class="result-main status-error">${escapeHtml(item.recipient_check)}</span>${item.recipient_check_note ? `<span class="result-note">${escapeHtml(item.recipient_check_note)}</span>` : ''}</div>` : ''}
           ${item.action ? `<div class="muted">Action</div><div>${escapeHtml(item.action)}</div>` : ''}
           ${item.smtp_code ? `<div class="muted">SMTP-код</div><div>${escapeHtml(item.smtp_code)}</div>` : ''}
           ${item.enhanced_code ? `<div class="muted">Статус</div><div>${escapeHtml(item.enhanced_code)}</div>` : ''}

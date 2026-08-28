@@ -12,6 +12,9 @@ ACTION_TITLES = {
     "expanded": ("ok", "✓", "Адрес раскрыт в несколько получателей", "Почтовая система преобразовала исходный адрес в один или несколько конечных адресов."),
 }
 
+LOCAL_ALLOWED = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.!#$%&'*+/=?^_`{|}~-")
+DOMAIN_ALLOWED = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-.")
+
 KEYWORD_RULES = [
     (re.compile(r"\bspf\b.*(?:fail|failed|softfail|reject)|(?:fail|failed).*\bspf\b", re.I), "Не пройдена проверка SPF", "Сервер получателя не подтвердил право отправляющего сервера отправлять почту от имени домена."),
     (re.compile(r"\bdkim\b.*(?:fail|failed|invalid)|(?:fail|failed|invalid).*\bdkim\b", re.I), "Не пройдена проверка DKIM", "Сервер получателя не смог подтвердить DKIM-подпись сообщения."),
@@ -104,6 +107,68 @@ def _size_details(text: str) -> dict:
     }
 
 
+def _recipient_syntax_details(recipient: str | None) -> dict:
+    if not recipient:
+        return {}
+
+    highlights: list[dict] = []
+    notes: list[str] = []
+
+    def add(start: int, end: int) -> None:
+        if start < end and not any(h["start"] == start and h["end"] == end for h in highlights):
+            highlights.append({"start": start, "end": end, "kind": "syntax"})
+
+    lowered = recipient.lower()
+    search_from = 0
+    while True:
+        position = lowered.find("mailto:", search_from)
+        if position < 0:
+            break
+        add(position, position + len("mailto:"))
+        search_from = position + len("mailto:")
+    if "mailto:" in lowered:
+        notes.append("Удалите префикс mailto:")
+
+    if recipient.count("@") != 1:
+        add(0, len(recipient))
+        notes.append("Адрес должен содержать один символ @")
+    else:
+        local, domain = recipient.split("@", 1)
+        if not local:
+            add(0, max(1, len(recipient)))
+            notes.append("Не указано имя почтового ящика")
+        for index, char in enumerate(local):
+            if char not in LOCAL_ALLOWED:
+                add(index, index + 1)
+        domain_offset = len(local) + 1
+        if (
+            not domain
+            or "." not in domain
+            or domain.startswith(".")
+            or domain.endswith(".")
+            or ".." in domain
+        ):
+            add(domain_offset, len(recipient))
+        else:
+            for index, char in enumerate(domain):
+                if char not in DOMAIN_ALLOWED:
+                    add(domain_offset + index, domain_offset + index + 1)
+
+    if '"' in recipient:
+        notes.append("Удалите лишние кавычки")
+    if highlights and not notes:
+        notes.append("Удалите недопустимые символы и проверьте написание адреса")
+    if not highlights:
+        return {}
+
+    highlights.sort(key=lambda item: (item["start"], item["end"]))
+    return {
+        "recipient_check": "Проверьте адрес получателя",
+        "recipient_check_note": ". ".join(notes) + ".",
+        "recipient_highlights": highlights,
+    }
+
+
 def _explain(action: str | None, enhanced: str | None, smtp_code: str | None, diagnostic: str, full_text: str) -> dict:
     status = "unknown"
     symbol = "?"
@@ -189,7 +254,8 @@ def parse_delivery(text: str) -> dict:
                     enhanced = m.group(1)
             info = _explain(b["action"], enhanced, smtp, diag, text)
             size_info = _size_details(diag or text)
-            items.append({**b, "smtp_code": smtp, "enhanced_code": enhanced, **size_info, **info})
+            recipient_info = _recipient_syntax_details(b["recipient"])
+            items.append({**b, "smtp_code": smtp, "enhanced_code": enhanced, **size_info, **recipient_info, **info})
     else:
         action = (_first(r"^Action:\s*([^\s]+)", text) or "").lower() or None
         if not action:
@@ -212,6 +278,7 @@ def parse_delivery(text: str) -> dict:
         diagnostic = _first(r"^Diagnostic-Code:\s*(.+)$", text) or text[:500]
         info = _explain(action, enhanced, smtp, diagnostic, text)
         size_info = _size_details(text)
+        recipient_info = _recipient_syntax_details(recipient)
         items.append({
             "recipient": recipient,
             "action": action,
@@ -220,6 +287,7 @@ def parse_delivery(text: str) -> dict:
             "smtp_code": smtp,
             "enhanced_code": enhanced,
             **size_info,
+            **recipient_info,
             **info,
         })
 

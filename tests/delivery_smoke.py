@@ -60,12 +60,20 @@ def main():
         "while receiving the initial server greeting",
         "ryazan@ryazangov.ru", "Сервер получателя не ответил", "error",
     )
-    check(
+    malformed = check(
         '<"mailto:stroyholding0414"@mail.ru>: host mxs.mail.ru[217.69.139.150] said: '
         "550 5.1.3 Bad destination mailbox address syntax: invalid mailbox. Local "
         'mailbox <"mailto is unavailable: Ill-formatted e-mail address',
         '"mailto:stroyholding0414"@mail.ru', "Некорректный адрес получателя", "error",
     )
+    assert malformed["recipient_check"] == "Проверьте адрес получателя"
+    marked = [
+        malformed["recipient"][part["start"]:part["end"]]
+        for part in malformed["recipient_highlights"]
+    ]
+    assert "mailto:" in marked
+    assert marked.count('"') == 2
+    assert "Удалите префикс mailto:" in malformed["recipient_check_note"]
     check(
         "into@xn--geenfin-rgg.xn--izoup-owe.com: host 10.0.10.176[10.0.10.176] said: "
         "450 4.1.2 Recipient address rejected: Domain not found",
