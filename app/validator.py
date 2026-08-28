@@ -20,7 +20,10 @@ INVISIBLE = {"\u200b", "\u200c", "\u200d", "\ufeff", "\u00ad"}
 LOCAL_ASCII_ALLOWED = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.!#$%&'*+/=?^_`{|}~-")
 DOMAIN_ASCII_ALLOWED = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-.")
 
-EMAIL_CANDIDATE_RE = re.compile(r"[^\s<>\"()\[\],;:]+@[^\s<>\"'()\[\],;:]+", re.UNICODE)
+EMAIL_CANDIDATE_RE = re.compile(
+    r"(?:mailto:)?(?:\"[^\"\r\n]*\"|[^\s<>\"()\[\],;:]+)@[^\s<>\"'()\[\],;:]+",
+    re.UNICODE | re.I,
+)
 
 CYR_TO_LAT = str.maketrans({
     "а": "a", "А": "A", "е": "e", "Е": "E", "о": "o", "О": "O",
@@ -67,7 +70,9 @@ def extract_candidates(text: str, max_addresses: int = 100) -> tuple[list[Candid
                 left, right = token.split("@", 1)
                 right = re.split(r"[?#]", right, maxsplit=1)[0]
                 token = f"{left}@{right}"
-            token = re.sub(r"^(?:mailto:|smtp:)", "", token, flags=re.I)
+            # SMTP: is Outlook's recipient-type marker. Unlike it, mailto: is
+            # kept so the syntax checker can explicitly flag the URI prefix.
+            token = re.sub(r"^smtp:", "", token, flags=re.I)
             if "@" not in token:
                 continue
             # For Outlook-style semicolon lists, keep only this recipient's source fragment.
@@ -101,6 +106,14 @@ def _minority_script_highlights(value: str, base_offset: int = 0) -> list[dict]:
 
 def _validate_local(local: str, domain_is_cyrillic_rf: bool) -> tuple[list[dict], str | None]:
     highlights: list[dict] = []
+    lowered = local.lower()
+    search_from = 0
+    while True:
+        position = lowered.find("mailto:", search_from)
+        if position < 0:
+            break
+        highlights.append({"start": position, "end": position + len("mailto:"), "kind": "syntax"})
+        search_from = position + len("mailto:")
     scripts = {script_of(ch) for ch in local if script_of(ch)}
     scripts.discard(None)
     if "latin" in scripts and "cyrillic" in scripts:
@@ -181,9 +194,12 @@ def _validate_domain_syntax(domain: str, offset: int) -> tuple[str | None, list[
 
 def normalize_email(email: str) -> tuple[str, str, str] | None:
     email = unicodedata.normalize("NFC", clean_invisible(email)).strip()
-    if email.count("@") != 1:
+    if "@" not in email:
         return None
-    local, domain = email.split("@", 1)
+    # The last @ separates the destination domain. Earlier @ characters are
+    # retained in the local part so they can be highlighted as syntax errors
+    # instead of causing the parser to mistake part of the address for a domain.
+    local, domain = email.rsplit("@", 1)
     domain = domain.lower()
     return f"{local}@{domain}", local, domain
 

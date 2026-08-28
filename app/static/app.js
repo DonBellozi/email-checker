@@ -1,5 +1,14 @@
 const $ = (sel) => document.querySelector(sel);
 
+$('#emailInput').addEventListener('paste', (event) => {
+  const pasted = event.clipboardData?.getData('text/plain');
+  if (pasted == null || pasted === '') return;
+  event.preventDefault();
+  const textarea = event.currentTarget;
+  const text = /(?:\r?\n)$/.test(pasted) ? pasted : `${pasted}\n`;
+  textarea.setRangeText(text, textarea.selectionStart, textarea.selectionEnd, 'end');
+});
+
 for (const tab of document.querySelectorAll('.tab')) {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));

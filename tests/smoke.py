@@ -25,6 +25,39 @@ def main():
     assert result["results"][1]["result"] == "Проверьте имя"
     assert result["results"][2]["result"] == "Проверьте имя"
 
+    quoted_mailto = asyncio.run(validate_text('"mailto:stroyholding0414"@mail.ru'))
+    assert quoted_mailto["count"] == 1
+    quoted_row = quoted_mailto["results"][0]
+    assert quoted_row["cleaned"] == '"mailto:stroyholding0414"@mail.ru'
+    assert quoted_row["result"] == "Проверьте имя"
+    marked = [
+        quoted_row["cleaned"][part["start"]:part["end"]]
+        for part in quoted_row["highlights"]
+    ]
+    assert "mailto:" in marked
+    assert marked.count('"') == 2
+
+    plain_mailto = asyncio.run(validate_text("mailto:user@mail.ru"))
+    assert plain_mailto["count"] == 1
+    assert plain_mailto["results"][0]["result"] == "Проверьте имя"
+    assert any(
+        plain_mailto["results"][0]["cleaned"][part["start"]:part["end"]] == "mailto:"
+        for part in plain_mailto["results"][0]["highlights"]
+    )
+
+    embedded_at = asyncio.run(validate_text('"mailto:stroy@holding0414"@mail.ru'))
+    assert embedded_at["count"] == 1
+    embedded_row = embedded_at["results"][0]
+    assert embedded_row["cleaned"] == '"mailto:stroy@holding0414"@mail.ru'
+    assert embedded_row["result"] == "Проверьте имя"
+    assert embedded_row["domain"] == "mail.ru"
+    embedded_marks = [
+        embedded_row["cleaned"][part["start"]:part["end"]]
+        for part in embedded_row["highlights"]
+    ]
+    assert "mailto:" in embedded_marks
+    assert "@" in embedded_marks
+
     dsn = parse_delivery("550 5.1.1 User unknown")
     assert dsn["items"][0]["title"] == "Получатель не найден"
 
